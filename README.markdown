@@ -1,25 +1,20 @@
-Description
---------------------------
+### Description
 Really simple Bitly API client.
 
-Requirements
---------------------------
+### Requirements
 PHP 5+, json_decode(), bitly API Key
 
-API Documentation
---------------------------
+### API Documentation
 http://code.google.com/p/bitly-api/wiki/ApiDocumentation
 
-Main Methods from Bitly API
---------------------------
+### Main Methods from Bitly API
 1. shorten
 2. expand
 3. info
 4. stats
 5. errors
 
-Object Example
---------------------------
+### Object Example
 $bitly = new Bitly;
 $res = $bitly->shorten(array(
   'apiKey'  =>  'YOUR KEY',
@@ -27,16 +22,14 @@ $res = $bitly->shorten(array(
   'longUrl' =>  'YOUR URL'
 ));
 
-Static Example - PHP 5.3.0+ required
---------------------------
+### Static Example - PHP 5.3.0+ required
 $res = Bitly::shorten(array(
   'apiKey'  =>  'YOUR KEY',
   'login'   =>  'YOUR USERNAME',
   'longUrl' =>  'YOUR URL'
 ));
 
-Notes
---------------------------
+### Notes
 The array argument should be an array of keys and values. The keys corresponding to the API arguments and the values, well being the value you'd like to set.
 
 You DO NOT have to set the version or format parameter.
