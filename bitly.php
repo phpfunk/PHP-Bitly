@@ -61,7 +61,7 @@ class Bitly {
   
   public function is_error($res=NULL)
   {
-    return ($this->res->errorCode > 0 || $this->res->statusCode != "OK") ? true : false;
+    return ($this->res->errorCode > 0 || strtolower($this->res->statusCode) != "ok") ? true : false;
   }
   
   protected function is_json($str)
