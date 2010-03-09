@@ -38,7 +38,6 @@ class Bitly {
     $params = (substr($params, 0, 1) == '&') ? substr($params, 1) : $params;
     
     $res = file_get_contents(self::$endpoint . '/' . $method . '?' . $params);
-    //print self::remove_cdata($res);
     if ($format == 'xml') {
       $res = self::normalize(simplexml_load_string(self::remove_cdata($res)), $method);
     }
