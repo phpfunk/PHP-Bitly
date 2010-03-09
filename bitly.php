@@ -54,12 +54,54 @@ class Bitly {
     return $res;
   }
   
-  public function get_error()
+  public function get($what)
   {
+    $method = 'get_' . $what;
+    if (method_exists($this, $method)) {
+      return $this->$method();
+    }
     
+    $key = $this->get_key();
+    if ($key === false) {
+      return (isset($this->res->results->$what)) ? $this->res->results->$what : false;
+    }
+    
+    return (isset($this->res->results->$key->$what)) ? $this->res->results->$key->$what : false;
   }
   
-  public function is_error($res=NULL)
+  protected function get_error()
+  {
+    return 'Error Number (' . $this->res->errorCode . '): ' . $this->res->errorMessage;
+  }
+  
+  protected function get_key()
+  {
+    foreach ((array) $this->res->results as $key => $arr) {
+      if (is_array($this->res->results->$key)) {
+        return $key;
+      }
+      else {
+        return false;
+      }
+    }
+  }
+  
+  protected function get_referrers()
+  {
+    $referrers = (array) $this->res->results->referrers;
+    $tmp = array('total'=>0);
+    foreach ($referrers as $site => $arr) {
+      foreach ($arr as $section => $total) {
+        $section = ($section == '/') ? '' : $section;
+        $key = ($site == '_empty_') ? 'direct' : $site . $section;
+        $tmp[$key] = $total;
+        $tmp['total'] += $total;
+      }
+    }
+    return $tmp;
+  }
+  
+  public function is_error()
   {
     return ($this->res->errorCode > 0 || strtolower($this->res->statusCode) != "ok") ? true : false;
   }
