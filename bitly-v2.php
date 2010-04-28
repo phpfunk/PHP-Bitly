@@ -5,13 +5,13 @@
 * @author Jeff Johns <phpfunk@gmail.com>
 * @license MIT License
 */
-class Bitly {
+class Bitly_V2 {
 
-  public $apiKey    =   NULL;
-  public $login     =   NULL;
+  public $api_key   =   NULL;
   public $res       =   NULL;
+  public $version   =   '2.0.1';
   
-  protected static $endpoint = 'http://api.bit.ly/v3';
+  protected static $endpoint = 'http://api.bit.ly';
 
   /**
   * Magic method to request call for any method called
@@ -53,30 +53,29 @@ class Bitly {
   *
   * @return array
   */
-  protected function call($method, $args=array(), $type)
+  protected function call($method, $args, $type)
   {
     $method         =   strtolower($method);
     $params         =   null;
     $format         =   'json';
     $key_found      =   false;
-    $login_found    =   false;
-    $args[0]        =   (!isset($args[0])) ? array() : $args[0];
+    $version_found  =   false;
     
     foreach ($args[0] as $key => $val) {
       $amp              = (empty($params)) ? '' : '&';
       $params          .=   $amp . $key . '=' . urlencode($val);
       $format           =   ($key == 'format')  ? strtolower($val) : $format;
+      $version_found    =   ($key == 'version') ? true : $version_found;
       $key_found        =   ($key == 'apiKey')  ? true : $key_found;
-      $login_found      =   ($key == 'login')  ? true : $login_found;
     }
     
-    $params .= ($key_found === false && $type == 'object') ? '&apiKey=' . $this->apiKey : '';
-    $params .= ($login_found === false && $type == 'object') ? '&login=' . $this->login : '';
+    $params .= ($key_found === false && $type == 'object') ? '&apikey=' . $this->api_key : '';
+    $params .= ($version_found === false && $type == 'object') ? '&version=' . $this->version : '';
     $params = (substr($params, 0, 1) == '&') ? substr($params, 1) : $params;
     
     $res = file_get_contents(self::$endpoint . '/' . $method . '?' . $params);
     if ($format == 'xml') {
-      $res = simplexml_load_string(self::remove_cdata($res));
+      $res = self::normalize(simplexml_load_string(self::remove_cdata($res)), $method);
     }
     else {
       $res = json_decode($res);
@@ -84,8 +83,8 @@ class Bitly {
     
     if ($type == 'object') { 
       $this->res = $res;
-      $this->apiKey = ($key_found === true) ? $args[0]['apiKey'] : $this->apiKey;
-      $this->login = ($login_found === true) ? $args[0]['login'] : $this->login;
+      $this->api_key = ($key_found === true) ? $args[0]['apiKey'] : $this->api_key;
+      $this->version = ($version_found === true) ? $args[0]['version'] : $this->version;
     }
     
     return $res;
@@ -109,10 +108,10 @@ class Bitly {
     
     $key = $this->get_key();
     if ($key === false) {
-      return (isset($this->res->data->$what)) ? $this->res->data->$what : false;
+      return (isset($this->res->results->$what)) ? $this->res->results->$what : false;
     }
     
-    return (isset($this->res->data->$key->$what)) ? $this->res->data->$key->$what : false;
+    return (isset($this->res->results->$key->$what)) ? $this->res->results->$key->$what : false;
   }
   
   /**
@@ -122,7 +121,7 @@ class Bitly {
   */
   protected function get_error()
   {
-    return 'Error Number (' . $this->res->status_code . '): ' . $this->res->status_txt;
+    return 'Error Number (' . $this->res->errorCode . '): ' . $this->res->errorMessage;
   }
   
   /**
@@ -133,8 +132,8 @@ class Bitly {
   */
   protected function get_key()
   {
-    foreach ((array) $this->res->data as $key => $arr) {
-      if (is_array($this->res->data->$key)) {
+    foreach ((array) $this->res->results as $key => $arr) {
+      if (is_array($this->res->results->$key)) {
         return $key;
       }
       else {
@@ -144,13 +143,34 @@ class Bitly {
   }
   
   /**
+  * Returns all (if any) referrers by site/path => total.
+  * And total number of referrers.
+  *
+  * @return array
+  */
+  protected function get_referrers()
+  {
+    $referrers = (array) $this->res->results->referrers;
+    $tmp = array('total'=>0);
+    foreach ($referrers as $site => $arr) {
+      foreach ($arr as $section => $total) {
+        $section = ($section == '/') ? '' : $section;
+        $key = ($site == '_empty_') ? 'direct' : $site . $section;
+        $tmp[$key] = $total;
+        $tmp['total'] += $total;
+      }
+    }
+    return $tmp;
+  }
+  
+  /**
   * Returns a boolean if there is an error or not
   *
   * @return bool
   */
   public function is_error()
   {
-    return ($this->res->status_code != '200') ? true : false;
+    return ($this->res->errorCode > 0 || strtolower($this->res->statusCode) != "ok") ? true : false;
   }
   
   /**
@@ -165,7 +185,49 @@ class Bitly {
     return (substr(trim($str), 0, 1) == '<') ? false : true;
   }
   
-
+  /**
+  * Since this class uses PHP's Simple XML it creates
+  * an object different than the json returned object.
+  * This method normalizes the XMl data to be returned
+  * in the same pattern as the JSON result would.
+  *
+  * @param  mixed   $obj      The xml object result from API call
+  * @param  string  $method   The method called
+  *
+  * @return mixed
+  */
+  protected static function normalize($obj, $method)
+  {
+    $methods = array('errors','shorten','info');
+    if (! in_array($method, $methods)) { return $obj; }
+    
+    if ($method != 'errors') {
+      $k = ($method == 'shorten') ? $obj->results->nodeKeyVal->nodeKey : $obj->results->doc->hash;
+      $node = ($method == 'shorten') ? 'nodeKeyVal' : 'doc';
+      
+      foreach ((array) $obj->results->$node as $key => $val) {
+        if ($key != 'nodeKey') {
+          $obj->results->$k->$key = $val;
+        }
+      }
+      unset($obj->results->$node);
+    }
+    else {
+      $tmp = (array) $obj;
+      $res = (array) $obj->results;
+      $tmp['errorMessage'] = (string) $obj->errorMessage;
+      $tmp['results'] = array();
+      foreach($res['errorCode'] as $key => $value) {
+        $tmp['results'][$key]['errorCode'] = $res['errorCode'][$key];
+        $tmp['results'][$key]['errorMessage'] = $res['errorMessage'][$key];
+        $tmp['results'][$key]['statusCode'] = $res['statusCode'][$key];
+      }
+      $obj = $tmp;
+    }
+    
+    return $obj;
+  }
+  
   /**
   * Remove CDATA tags from XML
   *
