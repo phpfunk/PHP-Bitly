@@ -4,6 +4,9 @@ Really simple Bitly API client.
 ### Requirements
 PHP 5+, json_decode(), bitly API Key
 
+### Where I Am
+http://phpfunk.me
+
 ### API Documentation
 [http://code.google.com/p/bitly-api/wiki/ApiDocumentation](http://code.google.com/p/bitly-api/wiki/ApiDocumentation)
 
