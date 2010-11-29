@@ -5,7 +5,6 @@
 * @author Jeff Johns <phpfunk@gmail.com>
 * @license MIT License
 */
-
 class Bitly {
 
   public $apiKey    =   NULL;
