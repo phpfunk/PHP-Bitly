@@ -37,7 +37,7 @@ class Bitly {
   *
   * @return array
   */
-  public function __callStatic($method, $args)
+  public static function __callStatic($method, $args)
   {
     return self::call($method, $args, "static");
   }
